@@ -58,53 +58,12 @@ def display_game_state(game_state):
         gl.glPopMatrix()
 
     gl.glColor(0.8, 0.3, 0.3)
-    raw_unit = game_state.unit.raw_unit
-    shiftx = raw_unit['pivot']['x']
-    shifty = raw_unit['pivot']['y']
-    for cell in raw_unit['members']:
+    unit = game_state.unit
+    for cell in unit.members:
         gl.glPushMatrix()
-        set_ij(shifty + cell['y'], shiftx + cell['x'])
+        set_ij(unit.pivot.y + cell.y, unit.pivot.x + cell.x)
         display_cell()
         gl.glPopMatrix()
-
-
-# class GameState (object):
-#     def __init__(self):
-#         self._x = 0
-#         self._y = 0
-
-#     def width(self):
-#         return 5
-
-#     def height(self):
-#         return 10
-
-#     def is_empty(self, i, j):
-#         return not (
-#             (i == 8 and j == 0) or
-#             (i == 8 and j == 1) or
-#             (i == 8 and j == 4) or
-#             (i == 9 and j == 0) or
-#             (i == 9 and j == 1) or
-#             (i == 9 and j == 3) or
-#             (i == 9 and j == 4))
-
-#     def cursor(self):
-#         return [(self._y + 1, self._x + 2), (self._y + 1, self._x + 4)]
-
-
-#     def modify(self, action): # Stub instead of full functional state update
-#         if action == 'left':
-#             self._x -= 1
-#         elif action == 'right':
-#             self._x += 1
-#         elif action == 'up':
-#             self._y -= 1
-#         elif action == 'down':
-#             self._y += 1
-
-
-# game_state = GameState()
 
 
 def display():
@@ -131,20 +90,22 @@ def keyboard( key, x, y ):
     if key == '\033':
         sys.exit( )
 
+
 def special_input(key, x, y):
-    # if key == glut.GLUT_KEY_LEFT:
-    #     game_state.modify('left')
-    #     glut.glutPostRedisplay()
-    # elif key == glut.GLUT_KEY_RIGHT:
-    #     game_state.modify('right')
-    #     glut.glutPostRedisplay()
-    # elif key == glut.GLUT_KEY_UP:
-    #     game_state.modify('up')
-    #     glut.glutPostRedisplay()
-    # elif key == glut.GLUT_KEY_DOWN:
-    #     game_state.modify('down')
-    #     glut.glutPostRedisplay()
-    pass
+    global game_state
+    if key == glut.GLUT_KEY_LEFT:
+        game_state = lib.next(game_state, 'W')
+        glut.glutPostRedisplay()
+    elif key == glut.GLUT_KEY_RIGHT:
+        game_state = lib.next(game_state, 'E')
+        glut.glutPostRedisplay()
+    elif key == glut.GLUT_KEY_UP:
+        game_state = lib.next(game_state, 'SE')
+        glut.glutPostRedisplay()
+    elif key == glut.GLUT_KEY_DOWN:
+        game_state = lib.next(game_state, 'SW')
+        glut.glutPostRedisplay()
+
 
 task_spec = json.loads(open(sys.argv[1]).read())
 
@@ -153,8 +114,8 @@ units = list(lib._unit_generator(
     task_spec['units'],
     limit=task_spec['sourceLength']))
 
-init_board = lib.Board(task_spec['width'], task_spec['height'], task_spec['filled'])
-init_unit = lib.place_unit(init_board, 0, units[0])
+init_board = lib.Board(task_spec['width'], task_spec['height'], map(lib.Cell.parse, task_spec['filled']))
+init_unit = lib.place_unit(init_board, units[0])
 game_state = lib.InitState(init_board, init_unit, units)
 
 

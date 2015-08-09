@@ -1,3 +1,5 @@
+import copy
+
 class StateException(Exception):
     pass
 
@@ -14,17 +16,48 @@ def _unit_index_generator(seed):
         yield x
 
 
-def _unit_generator(seed, units, limit):
+def _unit_generator(seed, raw_units, limit):
+    count = 0
     for index in _unit_index_generator(seed):
         if limit == 0:
             break
-        yield units[index % len(units)]
+        yield Unit.parse(count, raw_units[index % len(raw_units)])
+        count += 1
         limit -= 1
 
 
 MOVES = ['W', 'E', 'SW', 'SE', 'CW', 'CC']
 
 _STATES = {}
+
+
+class Cell(object):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    @staticmethod
+    def parse(json_data):
+        return Cell(json_data['x'], json_data['y'])
+
+    def moved(self, direction):
+        if direction == 'W':
+            return Cell(self.x - 1, self.y)
+        elif direction == 'E':
+            return Cell(self.x + 1, self.y)
+        elif direction == 'SW':
+            if self.y % 2 == 0:
+                return Cell(self.x - 1, self.y + 1)
+            else:
+                return Cell(self.x, self.y + 1)
+        elif direction == 'SE':
+            if self.y % 2 == 0:
+                return Cell(self.x, self.y + 1)
+            else:
+                return Cell(self.x + 1, self.y + 1)
+
+    def rotated(self, pivot):
+        raise NotImplementedError()        
 
 
 class Board(object):
@@ -34,25 +67,46 @@ class Board(object):
         self.filled_cells = filled_cells
         self.filled = [[False for _ in xrange(self.width)] for _ in xrange(self.height)]
         for cell in self.filled_cells:
-            self.filled[cell['y']][cell['x']] = True
+            self.filled[cell.y][cell.x] = True
 
-    def __deepcopy__(self):
+    def __deepcopy__(self, memo):
         obj_copy = Board(self.width, self.height, copy.deepcopy(self.filled_cells))
         return obj_copy
 
     def collides(self, unit):
-        for cell in unit.raw_unit['members']:
-            if self.filled[cell['y']][cell['x']]:
+        for cell in unit.members:
+            if self.filled[cell.y][cell.x]:
+                return True
+            if cell.x < 0 or cell.x >= self.width or cell.y < 0 or cell.y >= self.height:
                 return True
         return False
 
 
 class Unit(object):
-    def __init__(self, id, raw_unit):
+    def __init__(self, id, pivot, members):
         self.id = id
-        self.raw_unit = raw_unit
+        self.pivot = pivot
+        self.members = members
 
+    def moved(self, direction):
+        members = []
+        for cell in self.members:
+            members.append(
+                Cell(self.pivot.x + cell.x, self.pivot.y + cell.y).moved(direction))
+        pivot = self.pivot.moved(direction)
 
+        members = [Cell(cell.x - pivot.x, cell.y - pivot.y) for cell in members]
+        return Unit(self.id, pivot, members)
+
+    @staticmethod
+    def parse(id, json_data):
+        return Unit(
+            id,
+            Cell.parse(json_data['pivot']),
+            map(Cell.parse, json_data['members'])
+        )
+        
+    
 class State(object):
     def __init__(self, id, prev_state, board, move, unit):
         self.id = id
@@ -109,57 +163,11 @@ def _rotate_cc(origin, cells):
     raise NotImplementedError()
 
 
-def _move_unit(unit, move):
-    res = copy.deepcopy(unit)
-    if move == 'W':
-        res['pivot'] = {
-            'x': unit['pivot']['x'] - 1,
-            'y': unit['pivot']['y']
-        }
-    elif move == 'E':
-        res['pivot'] = {
-            'x': unit['pivot']['x'] + 1,
-            'y': unit['pivot']['y']
-        }
-    elif move == 'SW':
-        if unit['pivot']['y'] % 2 == 0:
-            res['pivot'] = {
-                'x': unit['pivot']['x'] - 1,
-                'y': unit['pivot']['y'] + 1
-            }
-        else:
-            res['pivot'] = {
-                'x': unit['pivot']['x'],
-                'y': unit['pivot']['y'] + 1
-            }
-    elif move == 'SE':
-        if unit['pivot']['y'] % 2 == 0:
-            res['pivot'] = {
-                'x': unit['pivot']['x'],
-                'y': unit['pivot']['y'] + 1
-            }
-        else:
-            res['pivot'] = {
-                'x': unit['pivot']['x'] + 1,
-                'y': unit['pivot']['y'] + 1
-            }
-    elif move == 'CW':
-        res['members'] = _rotate_cw(res['pivot'], res['members'])
-    else:
-        assert move == 'CC'
-        res['members'] = _rotate_cc(res['pivot'], res['members'])
-    return res
-
-
-def place_unit(board, unit_id, raw_unit):
+def place_unit(board, unit):
     #stub for now
     pivot_y = 0
     pivot_x = board.width / 2
-    raw_unit['pivot'] = {
-        'x': pivot_x,
-        'y': pivot_y
-    }
-    return Unit(unit_id, raw_unit)
+    return Unit(unit.id, Cell(pivot_x, pivot_y), unit.members)
 
 
 def next(state, move):
@@ -168,17 +176,17 @@ def next(state, move):
     if not state.is_valid():
         raise MoveException("Cannot move from invalid state")
 
-    unit = _move_unit(self.unit, move)
+    unit = state.unit.moved(move)
     if state.board.collides(unit):
         board = copy.deepcopy(state.board)
         board.add_unit(state.unit)
         if state.unit.id + 1 == len(state.units):
             return FinalState(len(_STATES), state, board, move, None)
-        unit = place_unit(board, state.unit.id + 1, copy.deepcopy(state.units[state.unit.id + 1]))
+        unit = place_unit(board, copy.deepcopy(state.units[state.unit.id + 1]))
         if unit is None:
             return FinalState(len(_STATES), state, board, move, unit)
         return State(len(_STATES), state, board, move, unit)
-    return State(len(_STATES), state, board, move, unit)
+    return State(len(_STATES), state, copy.deepcopy(state.board), move, unit)
 
    
 class MoveMonkey(object):
