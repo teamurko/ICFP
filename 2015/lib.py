@@ -22,7 +22,9 @@ def _unit_generator(seed, units, limit):
         limit -= 1
 
 
-MOVES = ['W', 'E', 'SW', 'SE', 'CW', 'CC', 'NU']  # last is 'next unit'
+MOVES = ['W', 'E', 'SW', 'SE', 'CW', 'CC']  # last is 'next unit'
+
+_STATES = {}
 
 
 class Board(object):
@@ -30,6 +32,13 @@ class Board(object):
         self.width = width
         self.height = height
         self.filled_cells = filled_cells
+        self.filled = [[False for _ in xrange(self.width)] for _ in xrange(self.height)]
+        for cell in self.filled_cells:
+            self.filled[cell['y']][cell['x']] = True
+
+    def __deepcopy__(self):
+        obj_copy = Board(self.width, self.height, copy.deepcopy(self.filled_cells))
+        return obj_copy
 
 
 class Unit(object):
@@ -39,14 +48,17 @@ class Unit(object):
 
 
 class State(object):
-    def __init__(self, prev_state, move, unit):
+    def __init__(self, id, prev_state, board, move, unit):
+        self.id = id
         self.prev_state = prev_state
+        self.board = board
         self.move = move
         self.unit = unit
         self.units = prev_state.units
+        _STATES[self.id] = self
    
     def is_init(self):
-        return self.unit is None
+        return False
 
     def has_prev(self):
         return not self.is_init()
@@ -58,32 +70,18 @@ class State(object):
         return True
 
     def as_final(self):
-        return FinalState(self.prev_state, move, unit)
-
-    def history(self):
-        state = self.prev_state
-        units = []
-        while not state.is_init():
-            if not units or units[-1].id != state.unit.id:
-                units.append(state.unit)
-            state = state.prev_state
-        assert state.is_init()
-        units.reverse()
-        return (state.board, units)
+        return FinalState(len(_STATES), self.prev_state, self.board, self.move, self.unit)
 
 
 class InitState(State):
-    def __init__(self, board, units):
+    def __init__(self, board, unit, units):
+        self.id = 0
         self.board = board
         self.units = units
-        self.unit = None
+        _STATES[self.id] = self
 
-    @property
-    def unit(self):
-        raise StateException("Initial state does not have unit")
-
-    def history(self):
-        return (self.board, [])
+    def is_init(self):
+        return True
 
 
 class FinalState(State):
@@ -96,12 +94,72 @@ class InvalidState(State):
         return False
 
 
+def _rotate_cw(origin, cells):
+    raise NotImplementedError()
+
+
+def _rotate_cc(origin, cells):
+    raise NotImplementedError()
+
+
+def _move_unit(unit, move):
+    res = copy.deepcopy(unit)
+    if move == 'W':
+        res['pivot'] = {
+            'x': unit['pivot']['x'] - 1
+            'y': unit['pivot']['y']
+        }
+    elif move == 'E':
+        res['pivot'] = {
+            'x': unit['pivot']['x'] + 1
+            'y': unit['pivot']['y']
+        }
+    elif move == 'SW':
+        res['pivot'] = {
+            'x': unit['pivot']['x'] - 1
+            'y': unit['pivot']['y'] + 1
+        }
+    elif move == 'SE':
+        res['pivot'] = {
+            'x': unit['pivot']['x'] + 1
+            'y': unit['pivot']['y'] + 1
+        }
+    elif move == 'CW':
+        res['members'] = _rotate_cw(res['pivot'], res['members'])
+    else:
+        assert move == 'CC'
+        res['members'] = _rotate_cc(res['pivot'], res['members'])
+    return res
+
+
 def next(state, move):
-    if self.state.is_final():
-        raise StateException("Cannot move from final state")
-    if not self.state.is_valid():
-        raise StateException("Cannot move from invalid state")
-       
+    if state.is_final():
+        raise MoveException("Cannot move from final state")
+    if not state.is_valid():
+        raise MoveException("Cannot move from invalid state")
+    if move == 'NU':
+        unit = state.unit
+        board = copy.deepcopy(state.board)
+        board.add_unit(unit)
+        if state.unit.id + 1 == len(state.units):
+            return FinalState(len(_STATES), state, board, 'NU', None)
+        unit = _place_unit(board, state.unit.id + 1, copy.deepcopy(state.units[state.unit.id + 1]))
+        if unit is None:
+            return InvalidState(len(_STATES), state, board, 'NU', unit)
+        return State(len(_STATES), state, board, 'NU', unit)
+    
+    unit = _move_unit(self.unit, move)
+    if state.board.collides(unit):
+        board = copy.deepcopy(state.board)
+        board.add_unit(state.unit)
+        if state.unit.id + 1 == len(state.units):
+            return FinalState(len(_STATES), state, board, move, None)
+        unit = _place_unit(board, state.unit.id + 1, copy.deepcopy(state.units[state.unit.id + 1]))
+        if unit is None:
+            return FinalState(len(_STATES), state, board, move, unit)
+        return State(len(_STATES), state, board, move, unit)
+    #TODO
+
    
 class MoveMonkey(object):
     def __init__(self, init_state):
@@ -134,4 +192,3 @@ def solve(task_spec, end_time):
                     limit=task_spec['sourceLength']))
     init_board = Board(task_spec['width'], task_spec['height'], task_spec['filled'])
     move_monkey = MoveMonkey(InitState(init_board, units))
-
