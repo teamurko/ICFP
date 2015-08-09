@@ -22,7 +22,7 @@ def _unit_generator(seed, units, limit):
         limit -= 1
 
 
-MOVES = ['W', 'E', 'SW', 'SE', 'CW', 'CC']  # last is 'next unit'
+MOVES = ['W', 'E', 'SW', 'SE', 'CW', 'CC']
 
 _STATES = {}
 
@@ -39,6 +39,12 @@ class Board(object):
     def __deepcopy__(self):
         obj_copy = Board(self.width, self.height, copy.deepcopy(self.filled_cells))
         return obj_copy
+
+    def collides(self, unit):
+        for cell in unit.raw_unit['members']:
+            if self.filled[cell['y']][cell['x']]:
+                return True
+        return False
 
 
 class Unit(object):
@@ -137,17 +143,7 @@ def next(state, move):
         raise MoveException("Cannot move from final state")
     if not state.is_valid():
         raise MoveException("Cannot move from invalid state")
-    if move == 'NU':
-        unit = state.unit
-        board = copy.deepcopy(state.board)
-        board.add_unit(unit)
-        if state.unit.id + 1 == len(state.units):
-            return FinalState(len(_STATES), state, board, 'NU', None)
-        unit = _place_unit(board, state.unit.id + 1, copy.deepcopy(state.units[state.unit.id + 1]))
-        if unit is None:
-            return InvalidState(len(_STATES), state, board, 'NU', unit)
-        return State(len(_STATES), state, board, 'NU', unit)
-    
+
     unit = _move_unit(self.unit, move)
     if state.board.collides(unit):
         board = copy.deepcopy(state.board)
@@ -158,7 +154,7 @@ def next(state, move):
         if unit is None:
             return FinalState(len(_STATES), state, board, move, unit)
         return State(len(_STATES), state, board, move, unit)
-    #TODO
+    return State(len(_STATES), state, board, move, unit)
 
    
 class MoveMonkey(object):
