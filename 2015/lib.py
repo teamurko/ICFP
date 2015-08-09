@@ -74,12 +74,18 @@ class Board(object):
         return obj_copy
 
     def collides(self, unit):
-        for cell in unit.members:
-            if self.filled[cell.y][cell.x]:
-                return True
+        for cell in unit.abs_members():
             if cell.x < 0 or cell.x >= self.width or cell.y < 0 or cell.y >= self.height:
                 return True
+            if self.filled[cell.y][cell.x]:
+                return True
         return False
+
+    def add_unit(self, unit):
+        for cell in unit.abs_members():
+            assert not self.filled[cell.y][cell.x]
+            self.filled_cells.append(cell)
+            self.filled[cell.y][cell.x] = True
 
 
 class Unit(object):
@@ -105,6 +111,12 @@ class Unit(object):
             Cell.parse(json_data['pivot']),
             map(Cell.parse, json_data['members'])
         )
+
+    def abs_members(self):
+        return [
+            Cell(self.pivot.x + c.x, self.pivot.y + c.y)
+            for c in self.members
+        ]
         
     
 class State(object):
@@ -167,7 +179,10 @@ def place_unit(board, unit):
     #stub for now
     pivot_y = 0
     pivot_x = board.width / 2
-    return Unit(unit.id, Cell(pivot_x, pivot_y), unit.members)
+    res = Unit(unit.id, Cell(pivot_x, pivot_y), unit.members)
+    if board.collides(res):
+        res = None
+    return res
 
 
 def next(state, move):

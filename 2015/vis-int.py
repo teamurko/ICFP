@@ -34,6 +34,9 @@ def display_cell():
 
 def display_game_state(game_state):
     # using [0, 1] x [0, 1]
+    final_color = (0.8, 0.8, 0.8)
+    if not game_state.is_final():
+        final_color = None
     game_state_height = game_state.board.height
     game_state_width = game_state.board.width
     cell_size = min(1.0 / (0.5 + 1.5 * game_state_height), 1.0 / (sqrt_3 / 2 + sqrt_3 * game_state_width))
@@ -50,20 +53,24 @@ def display_game_state(game_state):
         set_ij(i, 0)
         for j in xrange(game_state_width):
             if game_state.board.filled[i][j]:
-                gl.glColor(0.7, 0.7, 0.3)
+                if final_color is not None:
+                    gl.glColor(*final_color)
+                else:
+                    gl.glColor(0.7, 0.7, 0.3)
             else:
                 gl.glColor(0.3, 0.3, 0.3)
             display_cell()
             gl.glTranslate(sqrt_3, 0.0, 0.0)
         gl.glPopMatrix()
 
-    gl.glColor(0.8, 0.3, 0.3)
     unit = game_state.unit
-    for cell in unit.members:
-        gl.glPushMatrix()
-        set_ij(unit.pivot.y + cell.y, unit.pivot.x + cell.x)
-        display_cell()
-        gl.glPopMatrix()
+    if unit is not None:
+        gl.glColor(0.8, 0.3, 0.3)
+        for cell in unit.members:
+            gl.glPushMatrix()
+            set_ij(unit.pivot.y + cell.y, unit.pivot.x + cell.x)
+            display_cell()
+            gl.glPopMatrix()
 
 
 def display():
@@ -93,6 +100,8 @@ def keyboard( key, x, y ):
 
 def special_input(key, x, y):
     global game_state
+    if game_state.is_final():
+        return
     if key == glut.GLUT_KEY_LEFT:
         game_state = lib.next(game_state, 'W')
         glut.glutPostRedisplay()
