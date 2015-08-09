@@ -32,7 +32,6 @@ def display_cell():
 
 
 
-
 def display_game_state(game_state):
     # using [0, 1] x [0, 1]
     game_state_height = game_state.board.height
@@ -56,14 +55,17 @@ def display_game_state(game_state):
                 gl.glColor(0.3, 0.3, 0.3)
             display_cell()
             gl.glTranslate(sqrt_3, 0.0, 0.0)
-        gl.glPopMatrix();
+        gl.glPopMatrix()
 
-    # gl.glColor(0.8, 0.3, 0.3)
-    # for i, j in game_state.cursor():
-    #     gl.glPushMatrix()
-    #     set_ij(i, j)
-    #     display_cell()
-    #     gl.glPopMatrix()
+    gl.glColor(0.8, 0.3, 0.3)
+    raw_unit = game_state.unit.raw_unit
+    shiftx = raw_unit['pivot']['x']
+    shifty = raw_unit['pivot']['y']
+    for cell in raw_unit['members']:
+        gl.glPushMatrix()
+        set_ij(shifty + cell['y'], shiftx + cell['x'])
+        display_cell()
+        gl.glPopMatrix()
 
 
 # class GameState (object):
@@ -152,7 +154,8 @@ units = list(lib._unit_generator(
     limit=task_spec['sourceLength']))
 
 init_board = lib.Board(task_spec['width'], task_spec['height'], task_spec['filled'])
-game_state = lib.InitState(init_board, units)
+init_unit = lib.place_unit(init_board, 0, units[0])
+game_state = lib.InitState(init_board, init_unit, units)
 
 
 glut.glutInit()

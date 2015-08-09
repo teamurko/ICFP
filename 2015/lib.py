@@ -80,7 +80,7 @@ class State(object):
 
 
 class InitState(State):
-    def __init__(self, board, units):
+    def __init__(self, board, unit, units):
         self.id = 0
         self.board = board
         self.unit = unit
@@ -151,7 +151,7 @@ def _move_unit(unit, move):
     return res
 
 
-def _place_unit(board, unit_id, raw_unit):
+def place_unit(board, unit_id, raw_unit):
     #stub for now
     pivot_y = 0
     pivot_x = board.width / 2
@@ -174,7 +174,7 @@ def next(state, move):
         board.add_unit(state.unit)
         if state.unit.id + 1 == len(state.units):
             return FinalState(len(_STATES), state, board, move, None)
-        unit = _place_unit(board, state.unit.id + 1, copy.deepcopy(state.units[state.unit.id + 1]))
+        unit = place_unit(board, state.unit.id + 1, copy.deepcopy(state.units[state.unit.id + 1]))
         if unit is None:
             return FinalState(len(_STATES), state, board, move, unit)
         return State(len(_STATES), state, board, move, unit)
@@ -211,4 +211,5 @@ def solve(task_spec, end_time):
                     task_spec['units'],
                     limit=task_spec['sourceLength']))
     init_board = Board(task_spec['width'], task_spec['height'], task_spec['filled'])
+    init_unit = place_unit(init_board, 0, units[0])
     move_monkey = MoveMonkey(InitState(init_board, units))
