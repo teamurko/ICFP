@@ -83,6 +83,7 @@ class InitState(State):
     def __init__(self, board, unit, units):
         self.id = 0
         self.board = board
+        self.unit = unit
         self.units = units
         _STATES[self.id] = self
 
@@ -148,6 +149,17 @@ def _move_unit(unit, move):
         assert move == 'CC'
         res['members'] = _rotate_cc(res['pivot'], res['members'])
     return res
+
+
+def _place_unit(board, unit_id, raw_unit):
+    #stub for now
+    pivot_y = 0
+    pivot_x = board.width / 2
+    raw_unit['pivot'] = {
+        'x': pivot_x,
+        'y': pivot_y
+    }
+    return Unit(unit_id, raw_unit)
 
 
 def next(state, move):
