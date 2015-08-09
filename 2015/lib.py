@@ -18,7 +18,7 @@ def _unit_generator(seed, units, limit):
     for index in _unit_index_generator(seed):
         if limit == 0:
             break
-        yield units[index]
+        yield units[index % len(units)]
         limit -= 1
 
 
@@ -80,7 +80,7 @@ class State(object):
 
 
 class InitState(State):
-    def __init__(self, board, unit, units):
+    def __init__(self, board, units):
         self.id = 0
         self.board = board
         self.unit = unit
