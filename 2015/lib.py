@@ -112,24 +112,36 @@ def _move_unit(unit, move):
     res = copy.deepcopy(unit)
     if move == 'W':
         res['pivot'] = {
-            'x': unit['pivot']['x'] - 1
+            'x': unit['pivot']['x'] - 1,
             'y': unit['pivot']['y']
         }
     elif move == 'E':
         res['pivot'] = {
-            'x': unit['pivot']['x'] + 1
+            'x': unit['pivot']['x'] + 1,
             'y': unit['pivot']['y']
         }
     elif move == 'SW':
-        res['pivot'] = {
-            'x': unit['pivot']['x'] - 1
-            'y': unit['pivot']['y'] + 1
-        }
+        if unit['pivot']['y'] % 2 == 0:
+            res['pivot'] = {
+                'x': unit['pivot']['x'] - 1,
+                'y': unit['pivot']['y'] + 1
+            }
+        else:
+            res['pivot'] = {
+                'x': unit['pivot']['x'],
+                'y': unit['pivot']['y'] + 1
+            }
     elif move == 'SE':
-        res['pivot'] = {
-            'x': unit['pivot']['x'] + 1
-            'y': unit['pivot']['y'] + 1
-        }
+        if unit['pivot']['y'] % 2 == 0:
+            res['pivot'] = {
+                'x': unit['pivot']['x'],
+                'y': unit['pivot']['y'] + 1
+            }
+        else:
+            res['pivot'] = {
+                'x': unit['pivot']['x'] + 1,
+                'y': unit['pivot']['y'] + 1
+            }
     elif move == 'CW':
         res['members'] = _rotate_cw(res['pivot'], res['members'])
     else:
